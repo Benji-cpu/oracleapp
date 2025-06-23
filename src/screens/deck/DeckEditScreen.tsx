@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDeckStore } from '../../stores/deckStore';
+import { CardListScreen } from '../card/CardListScreen';
 import type { Deck } from '../../types';
 
 const deckEditSchema = z.object({
@@ -28,7 +29,17 @@ export const DeckEditScreen: React.FC<DeckEditScreenProps> = ({
   onDelete 
 }) => {
   const [loading, setLoading] = useState(false);
+  const [showCardManagement, setShowCardManagement] = useState(false);
   const { updateDeck, deleteDeck } = useDeckStore();
+
+  if (showCardManagement) {
+    return (
+      <CardListScreen
+        deck={deck}
+        onBack={() => setShowCardManagement(false)}
+      />
+    );
+  }
 
   const {
     control,
@@ -186,10 +197,7 @@ export const DeckEditScreen: React.FC<DeckEditScreenProps> = ({
           <Button
             size="$4"
             variant="outlined"
-            onPress={() => {
-              // Navigate to card management
-              Alert.alert('Feature Coming Soon', 'Card management will be available soon');
-            }}
+            onPress={() => setShowCardManagement(true)}
           >
             Manage Cards ({deck.card_count})
           </Button>
