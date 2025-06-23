@@ -3,8 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { TamaguiProvider, createTamagui } from '@tamagui/core';
 import { config } from '@tamagui/config/v3';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthScreen } from './src/screens/auth';
-import { HomeScreen } from './src/screens/HomeScreen';
+import { AppNavigator } from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/stores/authStore';
 
 // Create Tamagui configuration
@@ -14,7 +13,7 @@ const tamaguiConfig = createTamagui(config);
 const queryClient = new QueryClient();
 
 export default function App() {
-  const { user, refreshSession } = useAuthStore();
+  const { refreshSession } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export default function App() {
     <TamaguiProvider config={tamaguiConfig}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="auto" />
-        {user ? <HomeScreen /> : <AuthScreen />}
+        <AppNavigator />
       </QueryClientProvider>
     </TamaguiProvider>
   );
