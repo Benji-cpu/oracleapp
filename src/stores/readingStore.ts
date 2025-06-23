@@ -3,6 +3,7 @@ import { database } from '../database';
 import { Q } from '@nozbe/watermelondb';
 import type { Reading, CardPosition } from '../types';
 import { syncService } from '../services/syncService';
+import { aiService } from '../services/aiService';
 
 interface ReadingState {
   readings: Reading[];
@@ -11,6 +12,7 @@ interface ReadingState {
   createReading: (reading: Omit<Reading, 'id' | 'created_at'>) => Promise<Reading>;
   fetchReadings: (userId: string) => Promise<void>;
   setCurrentReading: (reading: Reading | null) => void;
+  generateInterpretation: (readingId: string) => Promise<string>;
 }
 
 export const useReadingStore = create<ReadingState>((set, get) => ({
@@ -102,5 +104,44 @@ export const useReadingStore = create<ReadingState>((set, get) => ({
 
   setCurrentReading: (reading) => {
     set({ currentReading: reading });
+  },
+
+  generateInterpretation: async (readingId: string) => {
+    set({ loading: true });
+    try {
+      const result = await aiService.interpretReading({
+        reading_id: readingId,
+      });
+
+      // Update the reading with the interpretation in local database
+      await database.write(async () => {
+        const reading = await database.collections.get('readings').find(readingId);
+        await reading.update((r: any) => {
+          r.aiInterpretation = result.interpretation;
+          r.syncedAt = null; // Mark for sync
+        });
+      });
+
+      // Update the state
+      set((state) => ({
+        readings: state.readings.map((reading) =>
+          reading.id === readingId 
+            ? { ...reading, ai_interpretation: result.interpretation }
+            : reading
+        ),
+        currentReading: state.currentReading?.id === readingId 
+          ? { ...state.currentReading, ai_interpretation: result.interpretation }
+          : state.currentReading,
+        loading: false,
+      }));
+
+      // Sync to server in background
+      syncService.syncAll().catch(console.error);
+
+      return result.interpretation;
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
   },
 }));

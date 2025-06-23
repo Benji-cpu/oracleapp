@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Q } from '@nozbe/watermelondb';
 import type { CardState, Card } from '../types';
 import { syncService } from '../services/syncService';
+import { aiService } from '../services/aiService';
 
 export const useCardStore = create<CardState>((set, get) => ({
   cards: [],
@@ -198,5 +199,48 @@ export const useCardStore = create<CardState>((set, get) => ({
 
   setCurrentCard: (card) => {
     set({ currentCard: card });
+  },
+
+  generateMeaning: async (cardId: string, title?: string, keywords?: string[], styleTemplate?: string) => {
+    set({ loading: true });
+    try {
+      const result = await aiService.generateMeaning({
+        card_id: cardId,
+        title,
+        keywords,
+        style_template: styleTemplate,
+      });
+
+      // Update the card with the generated meaning
+      await get().updateCard(cardId, { meaning: result.meaning });
+      
+      set({ loading: false });
+      return result.meaning;
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  generateImage: async (cardId: string, title?: string, meaning?: string, keywords?: string[], styleTemplate?: string) => {
+    set({ loading: true });
+    try {
+      const result = await aiService.generateImage({
+        card_id: cardId,
+        title,
+        meaning,
+        keywords,
+        style_template: styleTemplate,
+      });
+
+      // Update the card with the generated image URL
+      await get().updateCard(cardId, { image_url: result.image_url });
+      
+      set({ loading: false });
+      return result.image_url;
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
   },
 }));

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Animated } from 'react-native';
 import { Button, Text, View, YStack, XStack, ScrollView } from '@tamagui/core';
 import { useCardStore } from '../../stores/cardStore';
+import { useReadingStore } from '../../stores/readingStore';
+import { useAuthStore } from '../../stores/authStore';
 import { SPREAD_TYPES, ANIMATIONS } from '../../constants';
 import type { Card, CardPosition } from '../../types';
 
@@ -27,8 +29,11 @@ export const ReadingSessionScreen: React.FC<ReadingSessionScreenProps> = ({
   const [revealedPositions, setRevealedPositions] = useState<number[]>([]);
   const [aiInterpretation, setAiInterpretation] = useState<string>('');
   const [generatingInterpretation, setGeneratingInterpretation] = useState(false);
+  const [readingId, setReadingId] = useState<string | null>(null);
   
   const { fetchCardsByDeck } = useCardStore();
+  const { generateInterpretation: generateAIInterpretation, createReading } = useReadingStore();
+  const { user } = useAuthStore();
   const spread = SPREAD_TYPES[spreadType as keyof typeof SPREAD_TYPES];
 
   useEffect(() => {
@@ -79,20 +84,35 @@ export const ReadingSessionScreen: React.FC<ReadingSessionScreenProps> = ({
   };
 
   const generateInterpretation = async () => {
+    if (!user) return;
+    
     setGeneratingInterpretation(true);
     
-    // Simulate AI interpretation generation
-    setTimeout(() => {
-      const interpretations = [
-        `Your reading reveals a powerful message about ${intention || 'your current path'}. The cards suggest that you are entering a period of significant growth and transformation. Trust in your inner wisdom as you navigate the changes ahead.`,
-        `The cards speak of balance and new beginnings on your journey. Your ${intention || 'question'} is answered through the harmonious energy of these cards, suggesting that patience and inner strength will guide you forward.`,
-        `This reading illuminates the path ahead with clarity and wisdom. The combination of cards suggests that you have the power within you to create the positive changes you seek. Trust the process and remain open to new possibilities.`,
-      ];
-      
-      const randomInterpretation = interpretations[Math.floor(Math.random() * interpretations.length)];
-      setAiInterpretation(randomInterpretation);
+    try {
+      // Create the reading first if not already created
+      let currentReadingId = readingId;
+      if (!currentReadingId) {
+        const reading = await createReading({
+          user_id: user.id,
+          deck_id: deckId,
+          spread_type: spreadType,
+          intention: intention || '',
+          card_positions: drawnCards,
+        });
+        currentReadingId = reading.id;
+        setReadingId(currentReadingId);
+      }
+
+      // Generate AI interpretation
+      const interpretation = await generateAIInterpretation(currentReadingId);
+      setAiInterpretation(interpretation);
+    } catch (error: any) {
+      console.error('Error generating interpretation:', error);
+      // Fall back to a generic message
+      setAiInterpretation(`Your reading with the ${spread.name} spread reveals important insights about ${intention || 'your current path'}. The cards selected for you hold meaningful guidance for your journey ahead.`);
+    } finally {
       setGeneratingInterpretation(false);
-    }, 2000);
+    }
   };
 
   const completeReading = () => {

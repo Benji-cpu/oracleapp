@@ -121,4 +121,6 @@ export interface CardState {
   deleteCard: (id: string) => Promise<void>;
   fetchCardsByDeck: (deckId: string) => Promise<void>;
   setCurrentCard: (card: Card | null) => void;
+  generateMeaning: (cardId: string, title?: string, keywords?: string[], styleTemplate?: string) => Promise<string>;
+  generateImage: (cardId: string, title?: string, meaning?: string, keywords?: string[], styleTemplate?: string) => Promise<string>;
 }

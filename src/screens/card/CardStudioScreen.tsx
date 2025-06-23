@@ -35,7 +35,7 @@ export const CardStudioScreen: React.FC<CardStudioScreenProps> = ({
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatingMeaning, setGeneratingMeaning] = useState(false);
   const { user } = useAuthStore();
-  const { createCard, updateCard } = useCardStore();
+  const { createCard, updateCard, generateMeaning, generateImage } = useCardStore();
 
   const isEditing = !!card;
   const userLimits = SUBSCRIPTION_LIMITS[user?.subscription_tier || 'free'];
@@ -58,6 +58,8 @@ export const CardStudioScreen: React.FC<CardStudioScreenProps> = ({
 
   const watchedTitle = watch('title');
   const watchedKeywords = watch('keywords');
+  const watchedMeaning = watch('meaning');
+  const watchedStyleTemplate = watch('styleTemplate');
 
   const onSubmit = async (data: CardCreateFormData) => {
     setLoading(true);
@@ -94,23 +96,25 @@ export const CardStudioScreen: React.FC<CardStudioScreenProps> = ({
       return;
     }
 
+    if (!card?.id) {
+      Alert.alert('Error', 'Please save the card first before generating AI content');
+      return;
+    }
+
     setGeneratingMeaning(true);
     try {
-      // Simulate AI generation for now
-      const meanings = [
-        'This card represents new beginnings and fresh starts. It encourages you to embrace change and trust in your journey.',
-        'A symbol of inner wisdom and intuition. Listen to your heart and trust the guidance that comes from within.',
-        'This card speaks of balance and harmony. Seek to find equilibrium in all aspects of your life.',
-        'Transformation and growth are highlighted. Embrace the changes that will lead to your highest good.',
-        'A reminder of your inner strength and resilience. You have the power to overcome any challenge.',
-      ];
+      const keywords = watchedKeywords ? watchedKeywords.split(',').map(k => k.trim()) : [];
+      const meaning = await generateMeaning(
+        card.id, 
+        watchedTitle, 
+        keywords, 
+        watchedStyleTemplate
+      );
       
-      const randomMeaning = meanings[Math.floor(Math.random() * meanings.length)];
-      setValue('meaning', randomMeaning);
-      
+      setValue('meaning', meaning);
       Alert.alert('Success', 'AI meaning generated!');
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to generate meaning. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to generate meaning. Please try again.');
     } finally {
       setGeneratingMeaning(false);
     }
@@ -122,13 +126,25 @@ export const CardStudioScreen: React.FC<CardStudioScreenProps> = ({
       return;
     }
 
+    if (!card?.id) {
+      Alert.alert('Error', 'Please save the card first before generating AI content');
+      return;
+    }
+
     setGeneratingImage(true);
     try {
-      // Simulate AI image generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      Alert.alert('Success', 'AI image generated! (Feature coming soon)');
+      const keywords = watchedKeywords ? watchedKeywords.split(',').map(k => k.trim()) : [];
+      const imageUrl = await generateImage(
+        card.id,
+        watchedTitle,
+        watchedMeaning,
+        keywords,
+        watchedStyleTemplate
+      );
+      
+      Alert.alert('Success', 'AI image generated successfully!');
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to generate image. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to generate image. Please try again.');
     } finally {
       setGeneratingImage(false);
     }
