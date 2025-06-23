@@ -1,13 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Text, View, YStack, Button, ScrollView } from '@tamagui/core';
 import { useDeckStore } from '../../stores/deckStore';
 import { useAuthStore } from '../../stores/authStore';
 import { SUBSCRIPTION_LIMITS } from '../../constants';
+import { DeckCreateScreen } from './DeckCreateScreen';
+import { DeckEditScreen } from './DeckEditScreen';
+import type { Deck } from '../../types';
 
 export const DeckGalleryScreen: React.FC = () => {
   const { user } = useAuthStore();
   const { decks, fetchDecks, loading } = useDeckStore();
+  const [currentView, setCurrentView] = useState<'gallery' | 'create' | 'edit'>('gallery');
+  const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
 
   useEffect(() => {
     fetchDecks();
@@ -15,6 +20,35 @@ export const DeckGalleryScreen: React.FC = () => {
 
   const userLimits = SUBSCRIPTION_LIMITS[user?.subscription_tier || 'free'];
   const canCreateDeck = userLimits.maxDecks === -1 || decks.length < userLimits.maxDecks;
+
+  if (currentView === 'create') {
+    return (
+      <DeckCreateScreen
+        onCancel={() => setCurrentView('gallery')}
+        onSuccess={() => {
+          setCurrentView('gallery');
+          fetchDecks();
+        }}
+      />
+    );
+  }
+
+  if (currentView === 'edit' && selectedDeck) {
+    return (
+      <DeckEditScreen
+        deck={selectedDeck}
+        onCancel={() => setCurrentView('gallery')}
+        onSuccess={() => {
+          setCurrentView('gallery');
+          fetchDecks();
+        }}
+        onDelete={() => {
+          setCurrentView('gallery');
+          fetchDecks();
+        }}
+      />
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -33,10 +67,7 @@ export const DeckGalleryScreen: React.FC = () => {
           backgroundColor="$green9"
           color="white"
           disabled={!canCreateDeck}
-          onPress={() => {
-            // Navigate to deck creation
-            console.log('Navigate to deck creation');
-          }}
+          onPress={() => setCurrentView('create')}
         >
           {canCreateDeck ? 'Create New Deck' : 'Deck Limit Reached'}
         </Button>
@@ -86,10 +117,11 @@ export const DeckGalleryScreen: React.FC = () => {
                   variant="outlined"
                   alignSelf="flex-start"
                   onPress={() => {
-                    console.log('Open deck:', deck.id);
+                    setSelectedDeck(deck);
+                    setCurrentView('edit');
                   }}
                 >
-                  Open Deck
+                  Edit Deck
                 </Button>
               </YStack>
             ))}

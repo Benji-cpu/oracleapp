@@ -5,6 +5,7 @@ import { config } from '@tamagui/config/v3';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/stores/authStore';
+import { database } from './src/database';
 
 // Create Tamagui configuration
 const tamaguiConfig = createTamagui(config);

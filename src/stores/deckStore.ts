@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import { database } from '../database';
 import { supabase } from '../../lib/supabase';
+import { Q } from '@nozbe/watermelondb';
 import type { DeckState, Deck } from '../types';
+import { syncService } from '../services/syncService';
 
 export const useDeckStore = create<DeckState>((set, get) => ({
   decks: [],
@@ -10,21 +13,39 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   createDeck: async (deckData) => {
     set({ loading: true });
     try {
-      const { data, error } = await supabase
-        .from('decks')
-        .insert([deckData])
-        .select()
-        .single();
+      // Create in local database first
+      const newDeck = await database.write(async () => {
+        return await database.collections.get('decks').create((deck: any) => {
+          deck.userId = deckData.user_id;
+          deck.name = deckData.name;
+          deck.description = deckData.description || '';
+          deck.cardCount = 0;
+          deck.isDeleted = false;
+          deck.syncedAt = null; // Will sync later
+        });
+      });
 
-      if (error) throw error;
+      // Convert to our Deck type
+      const deckResult: Deck = {
+        id: newDeck.id,
+        user_id: newDeck.userId,
+        name: newDeck.name,
+        description: newDeck.description,
+        cover_image_url: newDeck.coverImageUrl,
+        card_count: newDeck.cardCount,
+        created_at: newDeck.createdAt.toISOString(),
+        updated_at: newDeck.updatedAt.toISOString(),
+      };
 
-      const newDeck = data as Deck;
       set((state) => ({
-        decks: [...state.decks, newDeck],
+        decks: [...state.decks, deckResult],
         loading: false,
       }));
 
-      return newDeck;
+      // Sync to server in background
+      syncService.syncAll().catch(console.error);
+
+      return deckResult;
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -34,23 +55,40 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   updateDeck: async (id, updates) => {
     set({ loading: true });
     try {
-      const { data, error } = await supabase
-        .from('decks')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      // Update in local database
+      const updatedDeck = await database.write(async () => {
+        const deck = await database.collections.get('decks').find(id);
+        return await deck.update((d: any) => {
+          if (updates.name !== undefined) d.name = updates.name;
+          if (updates.description !== undefined) d.description = updates.description;
+          if (updates.cover_image_url !== undefined) d.coverImageUrl = updates.cover_image_url;
+          if (updates.card_count !== undefined) d.cardCount = updates.card_count;
+          d.syncedAt = null; // Mark for sync
+        });
+      });
 
-      if (error) throw error;
+      // Convert to our Deck type
+      const deckResult: Deck = {
+        id: updatedDeck.id,
+        user_id: updatedDeck.userId,
+        name: updatedDeck.name,
+        description: updatedDeck.description,
+        cover_image_url: updatedDeck.coverImageUrl,
+        card_count: updatedDeck.cardCount,
+        created_at: updatedDeck.createdAt.toISOString(),
+        updated_at: updatedDeck.updatedAt.toISOString(),
+      };
 
-      const updatedDeck = data as Deck;
       set((state) => ({
         decks: state.decks.map((deck) =>
-          deck.id === id ? updatedDeck : deck
+          deck.id === id ? deckResult : deck
         ),
-        currentDeck: state.currentDeck?.id === id ? updatedDeck : state.currentDeck,
+        currentDeck: state.currentDeck?.id === id ? deckResult : state.currentDeck,
         loading: false,
       }));
+
+      // Sync to server in background
+      syncService.syncAll().catch(console.error);
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -60,18 +98,23 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   deleteDeck: async (id) => {
     set({ loading: true });
     try {
-      const { error } = await supabase
-        .from('decks')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      // Mark as deleted in local database (soft delete)
+      await database.write(async () => {
+        const deck = await database.collections.get('decks').find(id);
+        await deck.update((d: any) => {
+          d.isDeleted = true;
+          d.syncedAt = null; // Mark for sync
+        });
+      });
 
       set((state) => ({
         decks: state.decks.filter((deck) => deck.id !== id),
         currentDeck: state.currentDeck?.id === id ? null : state.currentDeck,
         loading: false,
       }));
+
+      // Sync to server in background
+      syncService.syncAll().catch(console.error);
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -81,17 +124,31 @@ export const useDeckStore = create<DeckState>((set, get) => ({
   fetchDecks: async () => {
     set({ loading: true });
     try {
-      const { data, error } = await supabase
-        .from('decks')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch from local database first
+      const localDecks = await database.collections
+        .get('decks')
+        .query(Q.where('is_deleted', false))
+        .fetch();
 
-      if (error) throw error;
+      // Convert to our Deck type
+      const decks: Deck[] = localDecks.map((deck: any) => ({
+        id: deck.id,
+        user_id: deck.userId,
+        name: deck.name,
+        description: deck.description,
+        cover_image_url: deck.coverImageUrl,
+        card_count: deck.cardCount,
+        created_at: deck.createdAt.toISOString(),
+        updated_at: deck.updatedAt.toISOString(),
+      }));
 
       set({
-        decks: data as Deck[],
+        decks,
         loading: false,
       });
+
+      // Sync with server in background
+      syncService.syncAll().catch(console.error);
     } catch (error) {
       set({ loading: false });
       throw error;
