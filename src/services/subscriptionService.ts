@@ -14,7 +14,7 @@ import {
   finishTransaction,
   acknowledgePurchaseAndroid,
 } from 'react-native-iap';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { aiService } from './aiService';
 

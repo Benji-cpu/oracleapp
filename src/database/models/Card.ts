@@ -8,18 +8,18 @@ export class Card extends Model {
     deck: { type: 'belongs_to' as const, key: 'deck_id' },
   };
 
-  @field('deck_id') deckId!: string;
-  @field('title') title!: string;
-  @field('meaning') meaning?: string;
-  @field('keywords') _keywords?: string; // JSON string
-  @field('style_template') styleTemplate?: string;
-  @field('symbols') _symbols?: string; // JSON string
-  @field('image_url') imageUrl?: string;
-  @field('position') position!: number;
+  @field('deck_id') deckId = '';
+  @field('title') title = '';
+  @field('meaning') meaning = '';
+  @field('keywords') _keywords = ''; // JSON string
+  @field('style_template') styleTemplate = '';
+  @field('symbols') _symbols = ''; // JSON string
+  @field('image_url') imageUrl = '';
+  @field('position') position = 0;
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;
   @date('synced_at') syncedAt?: Date;
-  @field('is_deleted') isDeleted!: boolean;
+  @field('is_deleted') isDeleted = false;
 
   @relation('decks', 'deck_id') deck!: Deck;
 

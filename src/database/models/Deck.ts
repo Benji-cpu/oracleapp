@@ -8,15 +8,15 @@ export class Deck extends Model {
     cards: { type: 'has_many' as const, foreignKey: 'deck_id' },
   };
 
-  @field('user_id') userId!: string;
-  @field('name') name!: string;
+  @field(.*)  string;
+  @field(.*)  string;
   @field('description') description?: string;
   @field('cover_image_url') coverImageUrl?: string;
-  @field('card_count') cardCount!: number;
+  @field(.*)  number;
   @readonly @date('created_at') createdAt!: Date;
   @readonly @date('updated_at') updatedAt!: Date;
   @date('synced_at') syncedAt?: Date;
-  @field('is_deleted') isDeleted!: boolean;
+  @field(.*)  boolean;
 
   @children('cards') cards!: Card[];
 

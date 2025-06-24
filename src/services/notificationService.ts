@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 
 // Configure notification behavior
